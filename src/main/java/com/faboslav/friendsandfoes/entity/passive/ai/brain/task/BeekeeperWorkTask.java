@@ -16,9 +16,7 @@ import net.minecraft.util.dynamic.GlobalPos;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Optional;
-
-public class BeekeeperWorkTask extends VillagerWorkTask
+public final class BeekeeperWorkTask extends VillagerWorkTask
 {
 	public BeekeeperWorkTask() {
 		super();
@@ -27,15 +25,13 @@ public class BeekeeperWorkTask extends VillagerWorkTask
 	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		super.run(serverWorld, villagerEntity, l);
 
-		GlobalPos beehiveGlobalPos = getBeehiveGlobalPos(serverWorld, villagerEntity);
-
+		GlobalPos beehiveGlobalPos = getBeehiveGlobalPos(villagerEntity);
 		if (beehiveGlobalPos == null) {
 			return;
 		}
 
 		BlockState beehiveBlockState = serverWorld.getBlockState(beehiveGlobalPos.getPos());
-
-		if (isBeehiveReadyForHarvest(beehiveBlockState) == false) {
+		if (this.canHarvestHoney(beehiveBlockState) == false) {
 			return;
 		}
 
@@ -49,23 +45,28 @@ public class BeekeeperWorkTask extends VillagerWorkTask
 	}
 
 	protected void performAdditionalWork(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		GlobalPos beehiveGlobalPos = getBeehiveGlobalPos(serverWorld, villagerEntity);
-
+		GlobalPos beehiveGlobalPos = getBeehiveGlobalPos(villagerEntity);
 		if (beehiveGlobalPos == null) {
 			return;
 		}
 
 		BlockState beehiveBlockState = serverWorld.getBlockState(beehiveGlobalPos.getPos());
-
-		if (beehiveBlockState == null) {
-			return;
-		}
-
-		if (isBeehiveReadyForHarvest(beehiveBlockState) == false) {
+		if (this.canHarvestHoney(beehiveBlockState) == false) {
 			return;
 		}
 
 		this.harvestHoney(serverWorld, beehiveGlobalPos, beehiveBlockState);
+	}
+
+	@Nullable
+	private GlobalPos getBeehiveGlobalPos(VillagerEntity entity) {
+		return entity.getBrain().getOptionalMemory(MemoryModuleType.JOB_SITE).orElse(null);
+	}
+
+	private boolean canHarvestHoney(BlockState beehiveBlockState) {
+		return beehiveBlockState != null
+			   && (beehiveBlockState.getBlock() instanceof BeehiveBlock)
+			   && beehiveBlockState.get(BeehiveBlock.HONEY_LEVEL) == BeehiveBlock.FULL_HONEY_LEVEL;
 	}
 
 	private void harvestHoney(ServerWorld world, GlobalPos globalPos, BlockState beehiveState) {
@@ -73,21 +74,5 @@ public class BeekeeperWorkTask extends VillagerWorkTask
 		world.setBlockState(blockPos, beehiveState.with(BeehiveBlock.HONEY_LEVEL, 0), 3);
 		world.playSound(null, blockPos.getX(), blockPos.getY(), blockPos.getZ(), SoundEvents.BLOCK_BEEHIVE_SHEAR, SoundCategory.NEUTRAL, 1.0F, 1.0F);
 		BeehiveBlock.dropHoneycomb(world, blockPos);
-	}
-
-	@Nullable
-	private GlobalPos getBeehiveGlobalPos(ServerWorld world, VillagerEntity entity) {
-		Optional<GlobalPos> optional = entity.getBrain().getOptionalMemory(MemoryModuleType.JOB_SITE);
-		if (optional.isPresent()) {
-			GlobalPos globalPos = optional.get();
-
-			return globalPos;
-		}
-
-		return null;
-	}
-
-	private boolean isBeehiveReadyForHarvest(BlockState beehiveState) {
-		return beehiveState.get(BeehiveBlock.HONEY_LEVEL) == BeehiveBlock.FULL_HONEY_LEVEL;
 	}
 }
